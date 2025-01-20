@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="$(RootDirectory)src/FreeType/FreeType.csproj"/>
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="System.CommandLine"/>
+		<PackageReference Include="SixLabors.ImageSharp"/>
+	</ItemGroup>
+</Project>
