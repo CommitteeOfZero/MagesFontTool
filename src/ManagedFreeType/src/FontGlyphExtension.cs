@@ -1,4 +1,4 @@
-namespace FreeType;
+namespace ManagedFreeType;
 
 public unsafe abstract class FontGlyphExtension : IDisposable {
 	protected readonly FontGlyph _parent;

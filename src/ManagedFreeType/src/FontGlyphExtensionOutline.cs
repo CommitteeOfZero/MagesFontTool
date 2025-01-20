@@ -1,4 +1,4 @@
-namespace FreeType;
+namespace ManagedFreeType;
 
 public unsafe sealed class FontGlyphExtensionOutline : FontGlyphExtension {
 	readonly FT_OutlineGlyphRec_* _handle;

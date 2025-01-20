@@ -1,6 +1,6 @@
 using FreeTypeSharp;
 
-namespace FreeType;
+namespace ManagedFreeType;
 
 public unsafe sealed class FontBitmap : IDisposable {
 	readonly IReferenceCounted _parent;

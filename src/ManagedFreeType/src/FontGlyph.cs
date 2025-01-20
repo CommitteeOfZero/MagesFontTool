@@ -2,7 +2,7 @@ using FreeTypeSharp;
 using static FreeTypeSharp.FT;
 using static FreeTypeSharp.FT_Glyph_Format_;
 
-namespace FreeType;
+namespace ManagedFreeType;
 
 public unsafe sealed class FontGlyph : IReferenceCounted, IDisposable {
 	readonly FontLibrary _library;

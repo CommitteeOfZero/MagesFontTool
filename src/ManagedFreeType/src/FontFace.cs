@@ -1,7 +1,7 @@
 using FreeTypeSharp;
 using static FreeTypeSharp.FT;
 
-namespace FreeType;
+namespace ManagedFreeType;
 
 public unsafe sealed class FontFace : IReferenceCounted, IDisposable {
 	readonly FontLibrary _library;

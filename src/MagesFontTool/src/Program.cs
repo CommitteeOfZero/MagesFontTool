@@ -14,7 +14,7 @@ using static FreeTypeSharp.FT_Render_Mode_;
 using static FreeTypeSharp.FT_Size_Request_Type_;
 using static FreeTypeSharp.FT_Stroker_LineCap_;
 using static FreeTypeSharp.FT_Stroker_LineJoin_;
-using FreeType;
+using ManagedFreeType;
 
 static class Program {
 	static readonly UTF8Encoding _strictUtf8 = new(

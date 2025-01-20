@@ -1,4 +1,4 @@
-namespace FreeType;
+namespace ManagedFreeType;
 
 public unsafe sealed class FontGlyphExtensionBitmap : FontGlyphExtension {
 	readonly FT_BitmapGlyphRec_* _handle;

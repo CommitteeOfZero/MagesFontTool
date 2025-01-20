@@ -1,6 +1,6 @@
 using FreeTypeSharp;
 
-namespace FreeType;
+namespace ManagedFreeType;
 
 public unsafe sealed class FontOutlineReference : FontOutline {
 	readonly IReferenceCounted _parent;

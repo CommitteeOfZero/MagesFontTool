@@ -1,7 +1,7 @@
 using FreeTypeSharp;
 using static FreeTypeSharp.FT;
 
-namespace FreeType;
+namespace ManagedFreeType;
 
 public unsafe abstract class FontOutline : IDisposable {
 	protected readonly FT_Outline_* _handle;

@@ -1,6 +1,6 @@
 using FreeTypeSharp;
 
-namespace FreeType;
+namespace ManagedFreeType;
 
 static class Utils {
 	public static void ThrowIfError(FT_Error error) {

@@ -1,4 +1,4 @@
-namespace FreeType;
+namespace ManagedFreeType;
 
 interface IReferenceCounted {
 	int ReferenceCounter { get; set; }

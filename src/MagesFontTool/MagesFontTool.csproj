@@ -5,7 +5,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="$(RootDirectory)src/FreeType/FreeType.csproj"/>
+		<ProjectReference Include="$(RootDirectory)src/ManagedFreeType/ManagedFreeType.csproj"/>
 	</ItemGroup>
 
 	<ItemGroup>
