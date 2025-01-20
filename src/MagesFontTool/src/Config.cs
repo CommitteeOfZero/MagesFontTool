@@ -2,84 +2,56 @@ using System.Text.Json.Serialization;
 
 sealed class Config {
 	[JsonPropertyName("input")]
-	[JsonRequired]
-	public InputConfig Input { get; set; } = default!;
-
+	public required InputConfig Input { get; init; }
 	[JsonPropertyName("parameters")]
-	[JsonRequired]
-	public ParametersConfig Parameters { get; set; } = default!;
-
+	public required ParametersConfig Parameters { get; init; }
 	[JsonPropertyName("output")]
-	[JsonRequired]
-	public OutputConfig Output { get; set; } = default!;
+	public required OutputConfig Output { get; init; }
 }
 
 sealed class InputConfig {
 	[JsonPropertyName("glyphs-specification")]
-	[JsonRequired]
-	public string GlyphsSpecification { get; set; } = default!;
-
+	public required string GlyphsSpecification { get; init; }
 	[JsonPropertyName("font")]
-	[JsonRequired]
-	public string Font { get; set; } = default!;
+	public required string Font { get; init; }
 }
 
 sealed class ParametersConfig {
 	[JsonPropertyName("tile-size")]
-	[JsonRequired]
-	public int TileSize { get; set; } = default!;
-
+	public required int TileSize { get; init; }
 	[JsonPropertyName("font-size")]
-	[JsonRequired]
-	public int FontSize { get; set; } = default!;
-
+	public required int FontSize { get; init; }
 	[JsonPropertyName("font-center")]
-	[JsonRequired]
-	public double FontCenter { get; set; } = default!;
+	public required double FontCenter { get; init; }
 }
 
 sealed class OutputConfig {
 	[JsonPropertyName("bitmaps")]
-	[JsonRequired]
-	public BitmapConfig[] Bitmaps { get; set; } = default!;
-
+	public required BitmapConfig[] Bitmaps { get; init; }
 	[JsonPropertyName("metrics")]
-	[JsonRequired]
-	public MetricsConfig Metrics { get; set; } = default!;
+	public required MetricsConfig Metrics { get; init; }
 }
 
 sealed class BitmapConfig {
 	[JsonPropertyName("foreground")]
-	[JsonRequired]
-	public string Foreground { get; set; } = default!;
-
+	public required string Foreground { get; init; }
 	[JsonPropertyName("shadow")]
-	[JsonRequired]
-	public string Shadow { get; set; } = default!;
-
+	public required string Shadow { get; init; }
 	[JsonPropertyName("offset")]
-	[JsonRequired]
-	public int Offset { get; set; }
-
+	public required int Offset { get; init; }
 	[JsonPropertyName("tile-count-x")]
-	[JsonRequired]
-	public int TileCountX { get; set; }
-
+	public required int TileCountX { get; init; }
 	[JsonPropertyName("tile-count-y")]
-	[JsonRequired]
-	public int TileCountY { get; set; }
+	public required int TileCountY { get; init; }
 }
 
 sealed class MetricsConfig {
 	[JsonPropertyName("path")]
-	[JsonRequired]
-	public string Path { get; set; } = default!;
+	public required string Path { get; init; }
 
 	[JsonPropertyName("offset")]
-	[JsonRequired]
-	public int Offset { get; set; }
+	public required int Offset { get; init; }
 
 	[JsonPropertyName("count")]
-	[JsonRequired]
-	public int Count { get; set; }
+	public required int Count { get; init; }
 }
