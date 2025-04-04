@@ -3,14 +3,14 @@ using System.Collections.Immutable;
 sealed class GlyphSpec {
 	public readonly ImmutableArray<int> Units;
 	public readonly string Text;
-	public readonly bool FauxItalic;
+	public readonly string Font;
 
-	public GlyphSpec(ImmutableArray<int> units, string text, bool fauxItalic) {
+	public GlyphSpec(ImmutableArray<int> units, string text, string font) {
 		if (units.Length == 0) {
 			throw new ArgumentException("Unit sequence must not be empty.", nameof(units));
 		}
 		Units = units;
 		Text = text;
-		FauxItalic = fauxItalic;
+		Font = font;
 	}
 }

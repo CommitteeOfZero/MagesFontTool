@@ -53,103 +53,121 @@ static class Program {
 		return await _rootCommand.InvokeAsync(args);
 	}
 
-	static async Task Run(InvocationContext context) {
+	static void Run(InvocationContext context) {
 		string configPath = context.ParseResult.GetValueForOption(_configOption)!;
 		string outputPath = context.ParseResult.GetValueForOption(_outputOption)!;
 
 		string configDirectory = Path.GetDirectoryName(configPath)!;
-		Config config = JsonSerializer.Deserialize<Config>(await LoadBytes(configPath))!;
+		Config config = JsonSerializer.Deserialize<Config>(LoadBytes(configPath))!;
 
-		ImmutableArray<GlyphSpec> glyphSpecs = await LoadGlyphSpecs(Path.Join(configDirectory, config.Input.GlyphsSpecification));
+		ImmutableArray<GlyphSpec> glyphSpecs = LoadGlyphSpecs(Path.Join(configDirectory, config.Input.GlyphsSpecification));
 
-		int fontSize = config.Parameters.FontSize;
-		int tileSize = config.Parameters.TileSize;
-		int fontCenter = (int)Math.Round(config.Parameters.FontCenter*fontSize);
-
-		Point offset = new((tileSize - fontSize) / 2, fontCenter + tileSize / 2);
-
-		using FontLibrary library = new();
-
-		using FontStroker stroker = library.NewStroker();
-		using FontFace face = library.NewFace(await LoadBytes(Path.Join(configDirectory, config.Input.Font)), 0);
-		using FontGlyphSlot slot = face.Glyph;
-
-		face.RequestSize(new() {
-			type = FT_SIZE_REQUEST_TYPE_NOMINAL,
-			width = fontSize * 64,
-			height = fontSize * 64,
-			horiResolution = 72,
-			vertResolution = 72,
-		});
-
-		Dictionary<int, byte> advanceWidths = [];
+		Dictionary<int, int> advanceWidths = [];
 		Dictionary<int, PositionedImage<L8>[]> glyphForegrounds = [];
 		Dictionary<int, PositionedImage<L8>[]> glyphShadows = [];
 
-		HashSet<int> unitHistory = [];
-		foreach (GlyphSpec glyphSpec in glyphSpecs) {
-			if (glyphSpec.Units is not [int unit]) {
-				throw new Exception("Rasterizing glyphs with less or more one unit is not supported.");
+		using FontLibrary library = new();
+		using FontStroker stroker = library.NewStroker();
+
+		Dictionary<string, FontFace> faces = [];
+		Dictionary<string, FontGlyphSlot> slots = [];
+		try {
+			Dictionary<string, FT_Matrix_> transformMatrices = [];
+			foreach ((string name, Font font) in config.Input.Fonts) {
+				byte[] fontData = LoadBytes(Path.Join(configDirectory, font.File));
+				FontFace face = library.NewFace(fontData, 0);
+				faces[name] = face;
+				slots[name] = face.GetGlyph();
+				face.RequestSize(new() {
+					type = FT_SIZE_REQUEST_TYPE_NOMINAL,
+					width = font.Size * 64,
+					height = font.Size * 64,
+					horiResolution = 72,
+					vertResolution = 72,
+				});
+				transformMatrices[name] = new() {
+					xx = (nint)Math.Round(font.TransformMatrix.XX*65536),
+					xy = (nint)Math.Round(font.TransformMatrix.XY*65536),
+					yx = (nint)Math.Round(font.TransformMatrix.YX*65536),
+					yy = (nint)Math.Round(font.TransformMatrix.YY*65536),
+				};
 			}
-			if (unitHistory.Contains(unit)) {
-				throw new Exception($"Duplicate glyph unit: {unit}.");
-			}
-			unitHistory.Add(unit);
 
-			Point penPoint = new();
-
-			byte advanceWidth = 0;
-
-			List<PositionedImage<L8>> foreground = [];
-			List<PositionedImage<L8>> shadow = [];
-
-			foreach (Rune r in glyphSpec.Text.EnumerateRunes()) {
-				face.LoadGlyph(face.GetCharIndex((ulong)r.Value), FT_LOAD_NO_BITMAP | FT_LOAD_NO_HINTING);
-				using FontGlyph glyph = slot.GetGlyph();
-				using var extension = (FontGlyphExtensionOutline)glyph.GetExtension();
-
-				using FontOutline outline = extension.GetOutline();
-
-				if (glyphSpec.FauxItalic) {
-					outline.Transform(_fauxItalicMatrix);
+			HashSet<int> unitHistory = [];
+			foreach (GlyphSpec glyphSpec in glyphSpecs) {
+				if (glyphSpec.Units is not [int unit]) {
+					throw new Exception("Rasterizing glyphs with less or more one unit is not supported.");
 				}
+				if (unitHistory.Contains(unit)) {
+					throw new Exception($"Duplicate glyph unit: {unit}.");
+				}
+				unitHistory.Add(unit);
 
-				var glyphAdvanceWidth = (byte)Math.Round(glyph.Advance.x / 65536.0);
-				advanceWidth += glyphAdvanceWidth;
+				string fontName = glyphSpec.Font;
+				Font font = config.Input.Fonts[fontName];
+				FontFace face = faces[fontName];
+				FontGlyphSlot slot = slots[fontName];
+				FT_Matrix_ transformMatrix = transformMatrices[fontName];
 
-				{
-					PositionedImage<L8>? image = Rasterize(glyph);
-					if (image is not null) {
-						image.Point += (Size)penPoint;
-						foreground.Add(image);
+				Point penPoint = new(0, (int)Math.Round(font.CenterLine*font.Size));
+
+				List<PositionedImage<L8>> foreground = [];
+				List<PositionedImage<L8>> shadow = [];
+
+				foreach (Rune r in glyphSpec.Text.EnumerateRunes()) {
+					face.LoadGlyph(face.GetCharIndex((ulong)r.Value), FT_LOAD_NO_BITMAP | FT_LOAD_NO_HINTING);
+					using FontGlyph glyph = slot.GetGlyph();
+					using var extension = (FontGlyphExtensionOutline)glyph.GetExtension();
+
+					using FontOutline outline = extension.GetOutline();
+
+					outline.Transform(transformMatrix);
+
+					var glyphAdvanceWidth = (byte)Math.Round(glyph.Advance.x / 65536.0);
+
+					{
+						PositionedImage<L8>? image = Rasterize(glyph);
+						if (image is not null) {
+							image.Point += (Size)penPoint;
+							foreground.Add(image);
+						}
 					}
-				}
 
-				for (int i = 1; i < 8; i++) {
-					stroker.Set(64*i/2, FT_STROKER_LINECAP_ROUND, FT_STROKER_LINEJOIN_ROUND, 0);
-					using FontGlyph strokedGlyph = glyph.Stroke(stroker);
+					for (int i = 1; i < 8; i++) {
+						stroker.Set(64*i/2, FT_STROKER_LINECAP_ROUND, FT_STROKER_LINEJOIN_ROUND, 0);
+						using FontGlyph strokedGlyph = glyph.Stroke(stroker);
 
-					PositionedImage<L8>? image = Rasterize(strokedGlyph);
-					if (image is not null) {
-						Divide(image.Image, (byte)Math.Ceiling(i / 1.5f));
-						image.Point += (Size)penPoint;
-						shadow.Add(image);
+						PositionedImage<L8>? image = Rasterize(strokedGlyph);
+						if (image is not null) {
+							Divide(image.Image, (byte)Math.Ceiling(i / 1.5f));
+							image.Point += (Size)penPoint;
+							shadow.Add(image);
+						}
 					}
+
+					penPoint.X += glyphAdvanceWidth;
 				}
 
-				penPoint.X += glyphAdvanceWidth;
+				advanceWidths[unit] = penPoint.X;
+				glyphForegrounds[unit] = [..foreground];
+				glyphShadows[unit] = [..shadow];
 			}
-
-			advanceWidths[unit] = advanceWidth;
-			glyphForegrounds[unit] = [..foreground];
-			glyphShadows[unit] = [..shadow];
+		} finally {
+			foreach (FontGlyphSlot slot in slots.Values) {
+				slot.Dispose();
+			}
+			foreach (FontFace face in faces.Values) {
+				face.Dispose();
+			}
 		}
 
 		Directory.CreateDirectory(outputPath);
 
 		foreach (BitmapConfig bitmapConfig in config.Output.Bitmaps) {
+			int tileSize = bitmapConfig.TileSize;
 			int tileCountX = bitmapConfig.TileCountX;
 			int tileCountY = bitmapConfig.TileCountY;
+			Point offset = new(bitmapConfig.TilePadding, tileSize / 2);
 			Image<L8> foregroundImage = new(tileSize*tileCountX, tileSize*tileCountY);
 			Image<L8> shadowImage = new(tileSize*tileCountX, tileSize*tileCountY);
 			for (int y = 0; y < tileCountY; y++) {
@@ -158,7 +176,7 @@ static class Program {
 					if (!advanceWidths.ContainsKey(unit)) {
 						continue;
 					}
-					Point origin = offset + new Size(tileSize*x, tileSize*y);
+					Point origin = new Point(tileSize*x, tileSize*y) + (Size)offset;
 					PositionedImage<L8>[] foreground = glyphForegrounds[unit];
 					PositionedImage<L8>[] shadow = glyphShadows[unit];
 					foreach (PositionedImage<L8> image in glyphForegrounds[unit]) {
@@ -176,8 +194,9 @@ static class Program {
 		using (FileStream stream = File.Open(Path.Join(outputPath, config.Output.Metrics.Path), FileMode.Create)) {
 			for (int i = 0; i < config.Output.Metrics.Count; i++) {
 				int unit = config.Output.Metrics.Offset + i;
-				byte value = advanceWidths.GetValueOrDefault(unit);
-				stream.WriteByte(value);
+				int value = advanceWidths.GetValueOrDefault(unit);
+				value = (int)Math.Round(value*config.Output.Metrics.Scale);
+				stream.WriteByte(checked((byte)value));
 			}
 		}
 	}
@@ -269,8 +288,8 @@ static class Program {
 		return Image.LoadPixelData<L8>(dstBuffer, width, height);
 	}
 
-	static async Task<ImmutableArray<GlyphSpec>> LoadGlyphSpecs(string path) {
-		using JsonDocument document = JsonDocument.Parse(await LoadText(path));
+	static ImmutableArray<GlyphSpec> LoadGlyphSpecs(string path) {
+		using JsonDocument document = JsonDocument.Parse(LoadText(path));
 		List<GlyphSpec> glyphs = [];
 		foreach (JsonElement groupJson in document.RootElement.EnumerateArray()) {
 			glyphs.AddRange(toGlyphSpecs(groupJson));
@@ -282,13 +301,16 @@ static class Program {
 			if (parametersJson.ValueKind == JsonValueKind.Null) {
 				return [];
 			}
-			bool fauxItalic = parametersJson.GetProperty("faux-italic").GetBoolean();
+			string? font = parametersJson.GetProperty("font").GetString();
+			if (font is null) {
+				throw new InvalidDataException();
+			}
 
 			List<GlyphSpec> glyphs = [];
 			foreach (JsonElement glyphJson in json.GetProperty("glyphs").EnumerateArray()) {
 				ImmutableArray<int> units = toUnits(glyphJson.GetProperty("units"));
 				string text = toText(glyphJson.GetProperty("text"));
-				glyphs.Add(new(units, text, fauxItalic));
+				glyphs.Add(new(units, text, font));
 			}
 			return [..glyphs];
 		}
@@ -316,11 +338,11 @@ static class Program {
 		}
 	}
 
-	static async Task<string> LoadText(string path) {
-		return await File.ReadAllTextAsync(path, _strictUtf8);
+	static string LoadText(string path) {
+		return File.ReadAllText(path, _strictUtf8);
 	}
 
-	static async Task<byte[]> LoadBytes(string path) {
-		return await File.ReadAllBytesAsync(path);
+	static byte[] LoadBytes(string path) {
+		return File.ReadAllBytes(path);
 	}
 }

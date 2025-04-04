@@ -1,3 +1,4 @@
+using System.Buffers;
 using FreeTypeSharp;
 using static FreeTypeSharp.FT;
 
@@ -5,11 +6,13 @@ namespace ManagedFreeType;
 
 public unsafe sealed class FontFace : IReferenceCounted, IDisposable {
 	readonly FontLibrary _library;
+	readonly MemoryHandle _dataHandle;
 	readonly FT_FaceRec_* _handle;
 	bool _disposed;
 
-	internal FontFace(FontLibrary library, FT_FaceRec_* handle) {
+	internal FontFace(FontLibrary library, MemoryHandle dataHandle, FT_FaceRec_* handle) {
 		_library = library;
+		_dataHandle = dataHandle;
 		_handle = handle;
 		((IReferenceCounted)_library).AddReference();
 	}
@@ -26,14 +29,8 @@ public unsafe sealed class FontFace : IReferenceCounted, IDisposable {
 
 	void IReferenceCounted.DisposeCore() {
 		Utils.ThrowIfError(FT_Done_Face(_handle));
+		_dataHandle.Dispose();
 		((IReferenceCounted)_library).RemoveReference();
-	}
-
-	public FontGlyphSlot Glyph {
-		get {
-			ObjectDisposedException.ThrowIf(_disposed, this);
-			return new(_library, this, _handle->glyph);
-		}
 	}
 
 	public short Descender {
@@ -69,6 +66,11 @@ public unsafe sealed class FontFace : IReferenceCounted, IDisposable {
 			ObjectDisposedException.ThrowIf(_disposed, this);
 			return _handle->size->metrics.descender;
 		}
+	}
+
+	public FontGlyphSlot GetGlyph() {
+		ObjectDisposedException.ThrowIf(_disposed, this);
+		return new(_library, this, _handle->glyph);
 	}
 
 	public uint GetCharIndex(ulong code) {

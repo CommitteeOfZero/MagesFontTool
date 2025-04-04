@@ -1,3 +1,4 @@
+using System.Buffers;
 using FreeTypeSharp;
 using static FreeTypeSharp.FT;
 
@@ -37,10 +38,14 @@ public unsafe sealed class FontLibrary : IReferenceCounted, IDisposable {
 	public FontFace NewFace(ReadOnlySpan<byte> data, int index) {
 		ObjectDisposedException.ThrowIf(_disposed, this);
 		FT_FaceRec_* faceHandle;
-		fixed (byte* dataPtr = data) {
-			Utils.ThrowIfError(FT_New_Memory_Face(_handle, dataPtr, data.Length, index, &faceHandle));
+		MemoryHandle dataHandle = new Memory<byte>(data.ToArray()).Pin();
+		try {
+			Utils.ThrowIfError(FT_New_Memory_Face(_handle, (byte*)dataHandle.Pointer, data.Length, index, &faceHandle));
+		} catch {
+			dataHandle.Dispose();
+			throw;
 		}
-		return new(this, faceHandle);
+		return new(this, dataHandle, faceHandle);
 	}
 
 	public FontStroker NewStroker() {
